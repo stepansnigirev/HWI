@@ -168,6 +168,10 @@ class LedgerClient(HardwareWalletClient):
     # Current only supports segwit signing
     @ledger_exception
     def sign_tx(self, tx):
+        if b'\xfc\x02cs' in tx.unknown:
+            auth = tx.unknown[b'\xfc\x02cs']
+        else:
+            auth = ""
         c_tx = CTransaction(tx.tx)
         tx_bytes = c_tx.serialize_with_witness()
 
@@ -296,7 +300,7 @@ class LedgerClient(HardwareWalletClient):
             for i in range(len(segwit_inputs)):
                 for signature_attempt in all_signature_attempts[i]:
                     self.app.startUntrustedTransaction(False, 0, [segwit_inputs[i]], script_codes[i], c_tx.nVersion)
-                    tx.inputs[i].partial_sigs[signature_attempt[1]] = self.app.untrustedHashSign(signature_attempt[0], "", c_tx.nLockTime, 0x01)
+                    tx.inputs[i].partial_sigs[signature_attempt[1]] = self.app.untrustedHashSign(signature_attempt[0], auth, c_tx.nLockTime, 0x01)
         elif has_legacy:
             first_input = True
             # Legacy signing if all inputs are legacy
@@ -305,11 +309,16 @@ class LedgerClient(HardwareWalletClient):
                     assert(tx.inputs[i].non_witness_utxo is not None)
                     self.app.startUntrustedTransaction(first_input, i, legacy_inputs, script_codes[i], c_tx.nVersion)
                     self.app.finalizeInput(b"DUMMY", -1, -1, change_path, tx_bytes)
-                    tx.inputs[i].partial_sigs[signature_attempt[1]] = self.app.untrustedHashSign(signature_attempt[0], "", c_tx.nLockTime, 0x01)
+                    tx.inputs[i].partial_sigs[signature_attempt[1]] = self.app.untrustedHashSign(signature_attempt[0], auth, c_tx.nLockTime, 0x01)
                     first_input = False
 
         # Send PSBT back
         return {'psbt': tx.serialize()}
+
+    def authorize_tx(self, tx_hash, path):
+        self.app.signMessagePrepare(path, tx_hash)
+        sig = self.app.signMessageSign()
+        return sig
 
     # Must return a base64 encoded string with the signed message
     # The message can be any string
