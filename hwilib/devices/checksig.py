@@ -1,13 +1,10 @@
 import base64
-from typing import Dict
+from typing import Dict, Union
 
-from hwilib.devices.checksiglib.ipc import ipc_connect, ipc_send_and_get_response
-from hwilib.devices.checksiglib.ipc_message import (
-    AUTHORIZE_TX,
-    PING,
-    SIGN_TX,
-    IpcMessage,
-)
+from hwilib.devices.checksiglib.ipc import (ipc_connect,
+                                            ipc_send_and_get_response)
+from hwilib.devices.checksiglib.ipc_message import (PING, SIGN_MESSAGE,
+                                                    SIGN_TX, IpcMessage)
 from hwilib.devices.checksiglib.settings import LISTEN_PORT, PORT_RANGE
 
 from ..errors import ActionCanceledError, DeviceConnectionError
@@ -39,31 +36,9 @@ class ChecksigClient(HardwareWalletClient):
         if resp is None:
             raise ActionCanceledError("CheckSig device did not sign")
 
-        # Return signed PSBT back
         return {"psbt": resp.get_raw_value()}
 
-    def sign_tx_with_auth(self, psbt: PSBT, auth) -> Dict[str, str]:
-        sock = ipc_connect(self.port)
-
-        if sock is None:
-            raise DeviceConnectionError(
-                "Unable to open a tcp socket with the checksig device"
-            )
-
-        serialized_psbt = psbt.serialize()
-        auth_b64 = base64.b64encode(auth).decode("utf-8")
-        data = serialized_psbt + "\n" + auth_b64
-        msg = IpcMessage(SIGN_TX, data)
-
-        resp = ipc_send_and_get_response(sock, msg)
-
-        if resp is None:
-            raise ActionCanceledError("CheckSig device did not sign")
-
-        # Return signed PSBT back
-        return {"psbt": resp.get_raw_value()}
-
-    def authorize_tx(self, message: bytes, bip32_path: str) -> bytes:
+    def _sign_message(self, message: bytes, bip32_path: str) -> Dict[str, str]:
         sock = ipc_connect(self.port)
 
         if sock is None:
@@ -73,23 +48,22 @@ class ChecksigClient(HardwareWalletClient):
 
         message_b64 = base64.b64encode(message).decode("utf-8")
         data = message_b64 + "\n" + bip32_path
-        msg = IpcMessage(AUTHORIZE_TX, data)
+        msg = IpcMessage(SIGN_MESSAGE, data)
 
         resp = ipc_send_and_get_response(sock, msg)
 
         if resp is None:
             raise ActionCanceledError("CheckSig device did not sign")
 
-        return base64.b64decode(resp.get_raw_value())
+        sig = base64.b64decode(resp.get_raw_value())
+        return {"signature": sig.decode()}
 
-    def _sign_message(self, message: bytes, bip32_path: str) -> Dict[str, str]:
-        sig = self.authorize_tx(message, bip32_path)
-        signature = base64.b64encode(sig).decode("utf-8")
-        return {"signature": signature}
-
-    def sign_message(self, message: str, bip32_path: str) -> Dict[str, str]:
-        m = message.encode()
-        return self._sign_message(m, bip32_path)
+    def sign_message(
+        self, message: Union[str, bytes], bip32_path: str
+    ) -> Dict[str, str]:
+        if isinstance(message, str):
+            return self._sign_message(message.encode(), bip32_path)
+        return self._sign_message(message, bip32_path)
 
     def close(self):
         pass

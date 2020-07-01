@@ -1,5 +1,5 @@
-SIGN_TX = "sign"
-AUTHORIZE_TX = "auth"
+SIGN_TX = "sgtx"
+SIGN_MESSAGE = "sgms"
 RESP = "resp"
 PING = "ping"
 EXIT = "exit"

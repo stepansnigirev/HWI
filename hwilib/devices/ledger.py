@@ -315,18 +315,16 @@ class LedgerClient(HardwareWalletClient):
         # Send PSBT back
         return {'psbt': tx.serialize()}
 
-    def authorize_tx(self, tx_hash, path):
-        self.app.signMessagePrepare(path, tx_hash)
-        sig = self.app.signMessageSign()
-        return sig
-
     # Must return a base64 encoded string with the signed message
     # The message can be any string
     @ledger_exception
     def sign_message(self, message, keypath):
         if not check_keypath(keypath):
             raise BadArgumentError("Invalid keypath")
-        message = bytearray(message, 'utf-8')
+        if isinstance(message, str):
+            message = bytearray(message, 'utf-8')
+        else:
+            message = bytearray(message)
         keypath = keypath[2:]
         # First display on screen what address you're signing for
         self.app.getWalletPublicKey(keypath, True)
