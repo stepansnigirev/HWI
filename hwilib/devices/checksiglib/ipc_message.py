@@ -3,7 +3,7 @@ SIGN_MESSAGE = "sgms"
 RESP = "resp"
 PING = "ping"
 EXIT = "exit"
-
+XPUB = "xpub"
 
 # Class that represents an ipc message: a command with a raw payload
 # For serialization capability the payload is always a string so use
