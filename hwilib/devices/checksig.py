@@ -1,15 +1,12 @@
 import base64
 from typing import Dict, Union
 
-from hwilib.devices.checksiglib.ipc import (ipc_connect,
-                                            ipc_send_and_get_response)
-from hwilib.devices.checksiglib.ipc_message import (PING, SIGN_MESSAGE,
-                                                    SIGN_TX, IpcMessage)
-from hwilib.devices.checksiglib.settings import LISTEN_PORT, PORT_RANGE
-
 from ..errors import ActionCanceledError, DeviceConnectionError
 from ..hwwclient import HardwareWalletClient
 from ..serializations import PSBT
+from .checksiglib.ipc import ipc_connect, ipc_send_and_get_response
+from .checksiglib.ipc_message import PING, SIGN_MESSAGE, SIGN_TX, IpcMessage
+from .checksiglib.settings import LISTEN_PORT, PORT_RANGE
 
 
 class ChecksigClient(HardwareWalletClient):
@@ -24,7 +21,7 @@ class ChecksigClient(HardwareWalletClient):
 
         if sock is None:
             raise DeviceConnectionError(
-                "Unable to open a tcp socket with the software device"
+                "Unable to open a tcp socket with the CheckSig device"
             )
 
         serialized_psbt = psbt.serialize()
@@ -38,12 +35,16 @@ class ChecksigClient(HardwareWalletClient):
 
         return {"psbt": resp.get_raw_value()}
 
-    def _sign_message(self, message: bytes, bip32_path: str) -> Dict[str, str]:
+    def sign_message(
+        self, message: Union[str, bytes], bip32_path: str
+    ) -> Dict[str, str]:
+        if isinstance(message, str):
+            message = message.encode()
         sock = ipc_connect(self.port)
 
         if sock is None:
             raise DeviceConnectionError(
-                "Unable to open a tcp socket with the checksig device"
+                "Unable to open a tcp socket with the CheckSig device"
             )
 
         message_b64 = base64.b64encode(message).decode("utf-8")
@@ -57,13 +58,6 @@ class ChecksigClient(HardwareWalletClient):
 
         sig = base64.b64decode(resp.get_raw_value())
         return {"signature": sig.decode()}
-
-    def sign_message(
-        self, message: Union[str, bytes], bip32_path: str
-    ) -> Dict[str, str]:
-        if isinstance(message, str):
-            return self._sign_message(message.encode(), bip32_path)
-        return self._sign_message(message, bip32_path)
 
     def close(self):
         pass
@@ -85,20 +79,18 @@ def enumerate(password=""):
             if ping_resp is None:
                 continue
 
-            fingerprint = ping_resp.get_raw_value()
-
-            d_data = {}
-            d_data["type"] = "checksig"
-            d_data["model"] = "checksig_hwi"
-            d_data["path"] = "127.0.0.1:" + str(port)
-            d_data["needs_pin_sent"] = False
-            d_data["needs_passphrase_sent"] = False
-
-            d_data["fingerprint"] = fingerprint
+            d_data = {
+                "type": "checksig",
+                "model": "checksig_hwi",
+                "path": "127.0.0.1:" + str(port),
+                "needs_pin_sent": False,
+                "needs_passphrase_sent": False,
+                "fingerprint": ping_resp.get_raw_value(),
+            }
             results.append(d_data)
 
             sock.close()
-        except:
+        except Exception:
             continue
 
     return results
