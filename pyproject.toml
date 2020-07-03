@@ -23,6 +23,7 @@ pyaes = "^1.6"
 mnemonic = "^0.18.0"
 typing-extensions = "^3.7"
 libusb1 = "^1.7"
+pyserial = "^3.4"
 pyside2 = { version = "^5.14.0", optional = true }
 
 [tool.poetry.extras]
