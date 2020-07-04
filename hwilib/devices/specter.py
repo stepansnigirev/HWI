@@ -19,7 +19,8 @@ class SpecterClient(HardwareWalletClient):
     This abstract class defines the methods
     that hardware wallet subclasses should implement.
     """
-    TIMEOUT = 0.3
+    # timeout large enough to handle xpub derivations
+    TIMEOUT = 3
     def __init__(self, path: str, password:str="", expert:bool=False) -> None:
         super().__init__(path, password, expert)
         self.simulator = (":" in path)
@@ -75,7 +76,7 @@ class SpecterClient(HardwareWalletClient):
 
         Return {"signature": <base64 signature string>}.
         """
-        sig = self.query('signmessage %s %s' % (keypath, message))
+        sig = self.query('signmessage %s %s' % (bip32_path, message))
         return {"signature": sig}
 
     def display_address(
@@ -267,7 +268,7 @@ class SpecterBase:
     """Class with common constants and command encoding"""
     EOL = b"\r\n"
     ACK = b"ACK"
-    ACK_TIMOUT = 0.3
+    ACK_TIMOUT = 1
     def prepare_cmd(self, data):
         """
         Prepends command with 2*EOL and appends EOL at the end.
@@ -285,18 +286,32 @@ class SpecterUSBDevice(SpecterBase):
         self.ser = serial.Serial(baudrate=115200, timeout=30)
         self.ser.port = path
 
+    def read_until(self, eol, timeout=None):
+        t0 = time.time()
+        res = b""
+        while not (eol in res):
+            try:
+                raw = self.ser.read(1)
+                res += raw
+            except Exception as e:
+                time.sleep(0.01)
+            if timeout is not None and time.time() > t0+timeout:
+                self.ser.close()
+                raise DeviceBusyError("Timeout")
+        return res
+
     def query(self, data, timeout=None):
-        # we will get ack right away
-        self.ser.timeout = self.ACK_TIMOUT
+        # non blocking
+        self.ser.timeout = 0
         self.ser.open()
         self.ser.write(self.prepare_cmd(data))
         # first we should get ACK
-        res = self.ser.read_until(self.EOL)[:-len(self.EOL)]
+        res = self.read_until(self.EOL, self.ACK_TIMOUT)[:-len(self.EOL)]
         # then we should get the data itself
         if res != self.ACK:
+            self.ser.close()
             raise DeviceBusyError("Device didn't return ACK")
-        self.ser.timeout = timeout
-        res = self.ser.read_until(self.EOL)[:-len(self.EOL)]
+        res = self.read_until(self.EOL, timeout)[:-len(self.EOL)]
         self.ser.close()
         return res.decode()
 
@@ -336,3 +351,4 @@ class SpecterSimulator(SpecterBase):
         res = self.read_until(s, self.EOL, timeout)[:-len(self.EOL)]
         s.close()
         return res.decode()
+
