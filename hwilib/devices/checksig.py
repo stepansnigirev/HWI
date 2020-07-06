@@ -62,7 +62,7 @@ class ChecksigClient(HardwareWalletClient):
     def close(self):
         pass
 
-    def get_pubkey_at_path(self, path):
+    def get_pubkey_at_path(self, bip32_path):
         sock = ipc_connect(self.port)
 
         if sock is None:
@@ -70,11 +70,11 @@ class ChecksigClient(HardwareWalletClient):
                 "Unable to open a tcp socket with the checksig device"
             )
 
-        data = path + "\n"
+        data = bip32_path + "\n"
         msg = IpcMessage(XPUB, data)
         resp = ipc_send_and_get_response(sock, msg)
         if resp is None:
-            raise DeviceConnectionError("CheckSig device did not return pubkey at path")
+            raise DeviceConnectionError("CheckSig device did not return pubkey at bip32_path")
 
         xpub = base64.b64decode(resp.get_raw_value()).decode("utf-8")
         return {"xpub": xpub}
