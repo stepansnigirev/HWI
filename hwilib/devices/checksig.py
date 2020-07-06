@@ -5,7 +5,7 @@ from ..errors import ActionCanceledError, DeviceConnectionError
 from ..hwwclient import HardwareWalletClient
 from ..serializations import PSBT
 from .checksiglib.ipc import ipc_connect, ipc_send_and_get_response
-from .checksiglib.ipc_message import PING, SIGN_MESSAGE, SIGN_TX, IpcMessage, XPUB
+from .checksiglib.ipc_message import PING, SIGN_MESSAGE, SIGN_TX, XPUB, IpcMessage
 from .checksiglib.settings import LISTEN_PORT, PORT_RANGE
 
 
@@ -74,12 +74,10 @@ class ChecksigClient(HardwareWalletClient):
         msg = IpcMessage(XPUB, data)
         resp = ipc_send_and_get_response(sock, msg)
         if resp is None:
-            raise DeviceConnectionError(
-                "CheckSig device did not return pubkey at path"
-            )
+            raise DeviceConnectionError("CheckSig device did not return pubkey at path")
 
-        xpub = base64.b64decode(resp.get_raw_value()).decode('utf-8')
-        return {'xpub': xpub}
+        xpub = base64.b64decode(resp.get_raw_value()).decode("utf-8")
+        return {"xpub": xpub}
 
 
 def enumerate(password=""):
