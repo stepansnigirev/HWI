@@ -31,7 +31,7 @@ class ChecksigClient(HardwareWalletClient):
         resp = ipc_send_and_get_response(sock, msg)
 
         if resp is None:
-            raise ActionCanceledError("CheckSig device did not sign")
+            raise ActionCanceledError("CheckSig device did not sign tx")
 
         return {"psbt": resp.get_raw_value()}
 
@@ -54,7 +54,7 @@ class ChecksigClient(HardwareWalletClient):
         resp = ipc_send_and_get_response(sock, msg)
 
         if resp is None:
-            raise ActionCanceledError("CheckSig device did not sign")
+            raise ActionCanceledError("CheckSig device did not sign message")
 
         sig = base64.b64decode(resp.get_raw_value())
         return {"signature": sig.decode()}
@@ -75,7 +75,7 @@ class ChecksigClient(HardwareWalletClient):
         resp = ipc_send_and_get_response(sock, msg)
         if resp is None:
             raise DeviceConnectionError(
-                "Unable to open a tcp socket with the checksig device"
+                "CheckSig device did not return pubkey at path"
             )
 
         xpub = base64.b64decode(resp.get_raw_value()).decode('utf-8')
