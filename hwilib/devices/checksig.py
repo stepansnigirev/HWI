@@ -74,7 +74,7 @@ class ChecksigClient(HardwareWalletClient):
         msg = IpcMessage(XPUB, data)
         resp = ipc_send_and_get_response(sock, msg)
         if resp is None:
-            raise DeviceConnectionError("CheckSig device did not return pubkey at bip32_path")
+            raise ActionCanceledError("CheckSig device did not return pubkey at bip32_path")
 
         xpub = base64.b64decode(resp.get_raw_value()).decode("utf-8")
         return {"xpub": xpub}
