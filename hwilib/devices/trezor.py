@@ -38,7 +38,9 @@ from .trezorlib import (
 )
 from .trezorlib import messages as proto
 from ..base58 import (
+    encode as base58_encode,
     get_xpub_fingerprint,
+    hash256,
     to_address,
     xpub_main_2_test,
 )
@@ -255,7 +257,20 @@ class TrezorClient(HardwareWalletClient):
                 # Check for multisig
                 is_ms, multisig = parse_multisig(scriptcode)
                 if is_ms:
+                    pubkeys = []
+                    xpub_obj = ExtendedKey()
+                    for xpub in list(tx.unknown.keys()):
+                        if xpub.startswith(b'\x01'):
+                            address_n = None
+                            for key in psbt_in.hd_keypaths.keys():
+                                keypath = psbt_in.hd_keypaths[key]
+                                if keypath[0] == master_fp:
+                                    address_n = keypath[1:]
+                            xpub_obj.deserialize(base58_encode(xpub[1:] + hash256(xpub[1:])[:4]))
+                            hd_node = proto.HDNodeType(depth=xpub_obj.depth, fingerprint=int.from_bytes(tx.unknown[xpub][:4], 'big'), child_num=xpub_obj.child_num, chain_code=xpub_obj.chaincode, public_key=xpub_obj.pubkey)
+                            pubkeys.append(proto.HDNodePathType(node=hd_node, address_n=address_n[-2:]))
                     # Add to txinputtype
+                    multisig = proto.MultisigRedeemScriptType(m=multisig.m, signatures=multisig.signatures, pubkeys=pubkeys)
                     txinputtype.multisig = multisig
                     if not psbt_in.witness_utxo:
                         if utxo.is_p2sh:
@@ -332,7 +347,20 @@ class TrezorClient(HardwareWalletClient):
 
                 # Add the derivation path for change, but only if there is exactly one derivation path
                 psbt_out = tx.outputs[i]
-                if len(psbt_out.hd_keypaths) == 1:
+                pubkeys = []
+                if psbt_out.hd_keypaths:
+                    xpub_obj = ExtendedKey()
+                    for xpub in list(tx.unknown.keys()):
+                        if xpub.startswith(b'\x01'):
+                            address_n = None
+                            for key in psbt_out.hd_keypaths.keys():
+                                keypath = psbt_out.hd_keypaths[key]
+                                if keypath[0] == master_fp:
+                                    address_n = keypath[1:]
+                            xpub_obj.deserialize(base58_encode(xpub[1:] + hash256(xpub[1:])[:4]))
+                            hd_node = proto.HDNodeType(depth=xpub_obj.depth, fingerprint=int.from_bytes(tx.unknown[xpub][:4], 'big'), child_num=xpub_obj.child_num, chain_code=xpub_obj.chaincode, public_key=xpub_obj.pubkey)
+                            pubkeys.append(proto.HDNodePathType(node=hd_node, address_n=address_n[-2:]))
+                for _, keypath in iter(psbt_out.hd_keypaths.items()):
                     _, keypath = next(iter(psbt_out.hd_keypaths.items()))
                     if keypath[0] == master_fp:
                         wit, ver, prog = out.is_witness()
@@ -349,7 +377,11 @@ class TrezorClient(HardwareWalletClient):
                                 txoutput.script_type = proto.OutputScriptType.PAYTOP2SHWITNESS
                                 txoutput.address_n = keypath[1:]
                                 txoutput.address = None
-
+                        if len(pubkeys) > 0:
+                            is_ms, multisig = parse_multisig(psbt_out.witness_script if wit else psbt_out.redeem_script)
+                            if is_ms:
+                                multisig = proto.MultisigRedeemScriptType(m=multisig.m, signatures=multisig.signatures, pubkeys=pubkeys)
+                                txoutput.multisig = multisig
                 # append to outputs
                 outputs.append(txoutput)
 
