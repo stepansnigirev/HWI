@@ -257,20 +257,32 @@ class TrezorClient(HardwareWalletClient):
                 # Check for multisig
                 is_ms, multisig = parse_multisig(scriptcode)
                 if is_ms:
-                    pubkeys = []
-                    xpub_obj = ExtendedKey()
-                    for xpub in list(tx.unknown.keys()):
-                        if xpub.startswith(b'\x01'):
-                            address_n = None
-                            for key in psbt_in.hd_keypaths.keys():
-                                keypath = psbt_in.hd_keypaths[key]
-                                if keypath[0] == master_fp:
-                                    address_n = keypath[1:]
-                            xpub_obj.deserialize(base58_encode(xpub[1:] + hash256(xpub[1:])[:4]))
-                            hd_node = proto.HDNodeType(depth=xpub_obj.depth, fingerprint=int.from_bytes(tx.unknown[xpub][:4], 'big'), child_num=xpub_obj.child_num, chain_code=xpub_obj.chaincode, public_key=xpub_obj.pubkey)
-                            pubkeys.append(proto.HDNodePathType(node=hd_node, address_n=address_n[-2:]))
-                    # Add to txinputtype
-                    multisig = proto.MultisigRedeemScriptType(m=multisig.m, signatures=multisig.signatures, pubkeys=pubkeys)
+                    # move up...
+                    import struct
+                    pubs = [k.node.public_key for k in multisig.pubkeys]
+                    xpubs = [xpub for xpub in tx.unknown.keys() if xpub.startswith(b"\x01")]
+                    derivations = [tx.unknown[xpub] for xpub in xpubs]
+                    # unpack
+                    derivations = [[value[4*i:4*i+4] for i in range(0,len(value) // 4)] for value in derivations]
+                    # derivations = [struct.unpack("<"+"I"*(len(value) // 4), value) for value in derivations]
+                    derivations = [[int.from_bytes(v,'little') for v in der] for der in derivations]
+                    # no checks for now like beyond the arr len etc
+                    new_pubs = []
+                    for pub in pubs:
+                        # derivation
+                        der = list(psbt_in.hd_keypaths[pub])
+                        # index in derivations - should start the same
+                        # no checks for hardened after N yet
+                        idx = derivations.index(der[:-2])
+                        xpub = xpubs[idx][1:]
+                        address_n = der[-2:]
+                        print(der)
+                        xpub_obj = ExtendedKey()
+                        xpub_obj.deserialize(base58_encode(xpub + hash256(xpub)[:4]))
+                        hd_node = proto.HDNodeType(depth=xpub_obj.depth, fingerprint=der[0], child_num=xpub_obj.child_num, chain_code=xpub_obj.chaincode, public_key=xpub_obj.pubkey)
+                        new_pub = proto.HDNodePathType(node=hd_node, address_n=address_n)
+                        new_pubs.append(new_pub)
+                    multisig = proto.MultisigRedeemScriptType(m=multisig.m, signatures=multisig.signatures, pubkeys=new_pubs)
                     txinputtype.multisig = multisig
                     if not psbt_in.witness_utxo:
                         if utxo.is_p2sh:
@@ -347,21 +359,9 @@ class TrezorClient(HardwareWalletClient):
 
                 # Add the derivation path for change, but only if there is exactly one derivation path
                 psbt_out = tx.outputs[i]
-                pubkeys = []
-                if psbt_out.hd_keypaths:
-                    xpub_obj = ExtendedKey()
-                    for xpub in list(tx.unknown.keys()):
-                        if xpub.startswith(b'\x01'):
-                            address_n = None
-                            for key in psbt_out.hd_keypaths.keys():
-                                keypath = psbt_out.hd_keypaths[key]
-                                if keypath[0] == master_fp:
-                                    address_n = keypath[1:]
-                            xpub_obj.deserialize(base58_encode(xpub[1:] + hash256(xpub[1:])[:4]))
-                            hd_node = proto.HDNodeType(depth=xpub_obj.depth, fingerprint=int.from_bytes(tx.unknown[xpub][:4], 'big'), child_num=xpub_obj.child_num, chain_code=xpub_obj.chaincode, public_key=xpub_obj.pubkey)
-                            pubkeys.append(proto.HDNodePathType(node=hd_node, address_n=address_n[-2:]))
-                for _, keypath in iter(psbt_out.hd_keypaths.items()):
-                    _, keypath = next(iter(psbt_out.hd_keypaths.items()))
+                for _, keypath in psbt_out.hd_keypaths.items():
+                # for _, keypath in iter(psbt_out.hd_keypaths.items()):
+                    # _, keypath = next(iter(psbt_out.hd_keypaths.items()))
                     if keypath[0] == master_fp:
                         wit, ver, prog = out.is_witness()
                         if out.is_p2pkh():
@@ -377,11 +377,33 @@ class TrezorClient(HardwareWalletClient):
                                 txoutput.script_type = proto.OutputScriptType.PAYTOP2SHWITNESS
                                 txoutput.address_n = keypath[1:]
                                 txoutput.address = None
-                        if len(pubkeys) > 0:
-                            is_ms, multisig = parse_multisig(psbt_out.witness_script if wit else psbt_out.redeem_script)
-                            if is_ms:
-                                multisig = proto.MultisigRedeemScriptType(m=multisig.m, signatures=multisig.signatures, pubkeys=pubkeys)
-                                txoutput.multisig = multisig
+                        is_ms, multisig = parse_multisig(psbt_out.witness_script if wit else psbt_out.redeem_script)
+                        if is_ms:
+                            pubs = [k.node.public_key for k in multisig.pubkeys]
+                            xpubs = [xpub for xpub in tx.unknown.keys() if xpub.startswith(b"\x01")]
+                            derivations = [tx.unknown[xpub] for xpub in xpubs]
+                            # unpack
+                            derivations = [[value[4*i:4*i+4] for i in range(0,len(value) // 4)] for value in derivations]
+                            # derivations = [struct.unpack("<"+"I"*(len(value) // 4), value) for value in derivations]
+                            derivations = [[int.from_bytes(v,'little') for v in der] for der in derivations]
+                            # no checks for now like beyond the arr len etc
+                            new_pubs = []
+                            for pub in pubs:
+                                # derivation
+                                der = list(psbt_out.hd_keypaths[pub])
+                                # index in derivations - should start the same
+                                # no checks for hardened after N yet
+                                idx = derivations.index(der[:-2])
+                                xpub = xpubs[idx][1:]
+                                address_n = der[-2:]
+                                print(der)
+                                xpub_obj = ExtendedKey()
+                                xpub_obj.deserialize(base58_encode(xpub + hash256(xpub)[:4]))
+                                hd_node = proto.HDNodeType(depth=xpub_obj.depth, fingerprint=der[0], child_num=xpub_obj.child_num, chain_code=xpub_obj.chaincode, public_key=xpub_obj.pubkey)
+                                new_pub = proto.HDNodePathType(node=hd_node, address_n=address_n)
+                                new_pubs.append(new_pub)
+                            multisig = proto.MultisigRedeemScriptType(m=multisig.m, signatures=multisig.signatures, pubkeys=new_pubs)
+                            txoutput.multisig = multisig
                 # append to outputs
                 outputs.append(txoutput)
 
