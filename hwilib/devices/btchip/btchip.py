@@ -247,6 +247,8 @@ class btchip:
 			try:
 				fullTx = bitcoinTransaction(bytearray(rawTx))
 				outputs = fullTx.serializeOutputs()
+				#FIXME: check endianness
+				outputs.extend(fullTx.lockTime)
 				if len(donglePath) != 0:
 					apdu = [ self.BTCHIP_CLA, self.BTCHIP_INS_HASH_INPUT_FINALIZE_FULL, 0xFF, 0x00 ]
 					params = []
