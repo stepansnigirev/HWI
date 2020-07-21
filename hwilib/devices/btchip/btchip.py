@@ -236,7 +236,7 @@ class btchip:
 				offset += blockLength
 			currentIndex += 1
 
-	def finalizeInput(self, outputAddress, amount, fees, changePath, rawTx=None):
+	def finalizeInput(self, outputAddress, amount, fees, changePath, rawTx=None, sendLockTime=False):
 		alternateEncoding = False
 		donglePath = parse_bip32_path(changePath)
 		if self.needKeyCache:
@@ -247,8 +247,9 @@ class btchip:
 			try:
 				fullTx = bitcoinTransaction(bytearray(rawTx))
 				outputs = fullTx.serializeOutputs()
-				#FIXME: check endianness
-				outputs.extend(fullTx.lockTime)
+				if sendLockTime:
+					#FIXME: check endianness
+					outputs.extend(fullTx.lockTime)
 				if len(donglePath) != 0:
 					apdu = [ self.BTCHIP_CLA, self.BTCHIP_INS_HASH_INPUT_FINALIZE_FULL, 0xFF, 0x00 ]
 					params = []
