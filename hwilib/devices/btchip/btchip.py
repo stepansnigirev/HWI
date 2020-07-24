@@ -244,36 +244,33 @@ class btchip:
 		result = {}
 		outputs = None
 		if rawTx is not None:
-			try:
-				fullTx = bitcoinTransaction(bytearray(rawTx))
-				outputs = fullTx.serializeOutputs()
-				if sendLockTime:
-					#FIXME: check endianness
-					outputs.extend(fullTx.lockTime)
-				if len(donglePath) != 0:
-					apdu = [ self.BTCHIP_CLA, self.BTCHIP_INS_HASH_INPUT_FINALIZE_FULL, 0xFF, 0x00 ]
-					params = []
-					params.extend(donglePath)
-					apdu.append(len(params))
-					apdu.extend(params)
-					response = self.dongle.exchange(bytearray(apdu))
-				offset = 0
-				while (offset < len(outputs)):
-					blockLength = self.scriptBlockLength
-					if ((offset + blockLength) < len(outputs)):
-						dataLength = blockLength
-						p1 = 0x00
-					else:
-						dataLength = len(outputs) - offset
-						p1 = 0x80
-					apdu = [ self.BTCHIP_CLA, self.BTCHIP_INS_HASH_INPUT_FINALIZE_FULL, \
-						p1, 0x00, dataLength ]
-					apdu.extend(outputs[offset : offset + dataLength])
-					response = self.dongle.exchange(bytearray(apdu))
-					offset += dataLength
-				alternateEncoding = True
-			except:
-				pass
+			fullTx = bitcoinTransaction(bytearray(rawTx))
+			outputs = fullTx.serializeOutputs()
+			if sendLockTime:
+				#FIXME: check endianness
+				outputs.extend(fullTx.lockTime)
+			if len(donglePath) != 0:
+				apdu = [ self.BTCHIP_CLA, self.BTCHIP_INS_HASH_INPUT_FINALIZE_FULL, 0xFF, 0x00 ]
+				params = []
+				params.extend(donglePath)
+				apdu.append(len(params))
+				apdu.extend(params)
+				response = self.dongle.exchange(bytearray(apdu))
+			offset = 0
+			while (offset < len(outputs)):
+				blockLength = self.scriptBlockLength
+				if ((offset + blockLength) < len(outputs)):
+					dataLength = blockLength
+					p1 = 0x00
+				else:
+					dataLength = len(outputs) - offset
+					p1 = 0x80
+				apdu = [ self.BTCHIP_CLA, self.BTCHIP_INS_HASH_INPUT_FINALIZE_FULL, \
+					p1, 0x00, dataLength ]
+				apdu.extend(outputs[offset : offset + dataLength])
+				response = self.dongle.exchange(bytearray(apdu))
+				offset += dataLength
+			alternateEncoding = True
 		if not alternateEncoding:
 			apdu = [ self.BTCHIP_CLA, self.BTCHIP_INS_HASH_INPUT_FINALIZE, 0x02, 0x00 ]
 			params = []
