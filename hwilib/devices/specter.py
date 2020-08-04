@@ -1,24 +1,13 @@
 # Specter interaction script
 from typing import Dict, Optional, Union
-<<<<<<< HEAD
-from hwilib.serializations import PSBT
-
-from hwilib.hwwclient import HardwareWalletClient
-from hwilib.errors import (ActionCanceledError, BadArgumentError,
-                           DeviceBusyError, DeviceFailureError,
-                           UnavailableActionError)
-from hwilib.base58 import xpub_main_2_test
-from hwilib import base58
-=======
 from ..serializations import PSBT
 
 from ..hwwclient import HardwareWalletClient
-from ..errors import (ActionCanceledError, BadArgumentError, 
-                           DeviceBusyError, DeviceFailureError, 
+from ..errors import (ActionCanceledError, BadArgumentError,
+                           DeviceBusyError, DeviceFailureError,
                            UnavailableActionError)
 from ..base58 import xpub_main_2_test
 from .. import base58
->>>>>>> specter/specter
 
 import serial
 import serial.tools.list_ports
@@ -62,7 +51,7 @@ class SpecterClient(HardwareWalletClient):
         """
         # this should be fast
         xpub = self.query("xpub %s" % bip32_path, timeout=self.TIMEOUT)
-        # Specter returns xpub with a prefix 
+        # Specter returns xpub with a prefix
         # for a network currently selected on the device
         if self.is_testnet:
             return {'xpub': xpub_main_2_test(xpub)}
@@ -124,107 +113,9 @@ class SpecterClient(HardwareWalletClient):
         address = self.query(request)
         return {'address': address}
 
-<<<<<<< HEAD
-    def wipe_device(self) -> Dict[str, Union[bool, str, int]]:
-        """Wipe the HID device.
-
-        Must return a dictionary with the "success" key,
-        possibly including also "error" and "code", e.g.:
-        {"success": bool, "error": srt, "code": int}.
-
-        Raise UnavailableActionError if appropriate for the device.
-        """
-        raise NotImplementedError("The SpecterClient class "
-                                  "does not implement this method")
-
-    def setup_device(
-        self, label: str = "", passphrase: str = ""
-    ) -> Dict[str, Union[bool, str, int]]:
-        """Setup the HID device.
-
-        Must return a dictionary with the "success" key,
-        possibly including also "error" and "code", e.g.:
-        {"success": bool, "error": str, "code": int}.
-
-        Raise UnavailableActionError if appropriate for the device.
-        """
-        raise NotImplementedError("The SpecterClient class "
-                                  "does not implement this method")
-
-    def restore_device(
-        self, label: str = "", word_count: int = 24
-    ) -> Dict[str, Union[bool, str, int]]:
-        """Restore the HID device from mnemonic.
-
-        Must return a dictionary with the "success" key,
-        possibly including also "error" and "code", e.g.:
-        {"success": bool, "error": srt, "code": int}.
-
-        Raise UnavailableActionError if appropriate for the device.
-        """
-        raise NotImplementedError("The SpecterClient class "
-                                  "does not implement this method")
-
-    def backup_device(
-        self, label: str = "", passphrase: str = ""
-    ) -> Dict[str, Union[bool, str, int]]:
-        """Backup the HID device.
-
-        Must return a dictionary with the "success" key,
-        possibly including also "error" and "code", e.g.:
-        {"success": bool, "error": srt, "code": int}.
-
-        Raise UnavailableActionError if appropriate for the device.
-        """
-        raise NotImplementedError("The SpecterClient class "
-                                  "does not implement this method")
-
-    def close(self) -> None:
-        """Close the device."""
-        # nothing to do here - we close on every query
-        pass
-
-    def prompt_pin(self) -> Dict[str, Union[bool, str, int]]:
-        """Prompt for PIN.
-
-        Must return a dictionary with the "success" key,
-        possibly including also "error" and "code", e.g.:
-        {"success": bool, "error": srt, "code": int}.
-
-        Raise UnavailableActionError if appropriate for the device.
-        """
-        raise NotImplementedError("The SpecterClient class "
-                                  "does not implement this method")
-
-    def send_pin(self) -> Dict[str, Union[bool, str, int]]:
-        """Send PIN.
-
-        Must return a dictionary with the "success" key,
-        possibly including also "error" and "code", e.g.:
-        {"success": bool, "error": srt, "code": int}.
-
-        Raise UnavailableActionError if appropriate for the device.
-        """
-        raise NotImplementedError("The SpecterClient class "
-                                  "does not implement this method")
-
-    def toggle_passphrase(self) -> Dict[str, Union[bool, str, int]]:
-        """Toggle passphrase.
-
-        Must return a dictionary with the "success" key,
-        possibly including also "error" and "code", e.g.:
-        {"success": bool, "error": srt, "code": int}.
-
-        Raise UnavailableActionError if appropriate for the device.
-        """
-        raise NotImplementedError("The SpecterClient class "
-                                  "does not implement this method")
-
-=======
     def close(self):
         pass
 
->>>>>>> specter/specter
     ############ extra functions Specter supports ############
 
     def get_random(self, num_bytes:int=32):
@@ -240,20 +131,12 @@ class SpecterClient(HardwareWalletClient):
 
 def enumerate(password=''):
     """
-<<<<<<< HEAD
     Returns a list of detected Specter devices
-=======
-    Returns a list of detected Specter devices 
->>>>>>> specter/specter
     with their fingerprints and client's paths
     """
     results = []
     # find ports with micropython's VID
-<<<<<<< HEAD
     ports = [port.device for port
-=======
-    ports = [port.device for port 
->>>>>>> specter/specter
                          in serial.tools.list_ports.comports()
                          if is_micropython(port)]
     try:
@@ -263,13 +146,8 @@ def enumerate(password=''):
         s.connect(("127.0.0.1", 8789))
         s.close()
         ports.append("127.0.0.1:8789")
-<<<<<<< HEAD
-    except:
-        pass
-=======
     except Exception as e:
         print(e)
->>>>>>> specter/specter
 
     for port in ports:
         # for every port try to get a fingerprint
@@ -285,13 +163,8 @@ def enumerate(password=''):
             data['fingerprint'] = client.get_master_fingerprint_hex()
             client.close()
             results.append(data)
-<<<<<<< HEAD
-        except:
-            pass
-=======
         except Exception as e:
             print(e)
->>>>>>> specter/specter
     return results
 
 ############# Helper functions and base classes ##############
@@ -392,46 +265,3 @@ class SpecterSimulator(SpecterBase):
         res = self.read_until(s, self.EOL, timeout)[:-len(self.EOL)]
         s.close()
         return res.decode()
-
-<<<<<<< HEAD
-###### test for communication ######
-
-if __name__ == '__main__':
-    import sys
-
-    devices = enumerate()
-    if len(devices) == 0:
-        print("No devices found")
-        sys.exit()
-    inp = 0;
-    if len(devices) > 1:
-        print("Found %d devices." % len(devices))
-        for i, dev in enumerate(devices):
-            print("[%d]" % i, dev)
-        inp = int(raw_input("Enter the device number to use:"))
-        if inp > len(devices):
-            print("Meh... Screw you.")
-            sys.exit()
-    dev = SpecterClient(devices[inp]["path"])
-    if len(sys.argv) == 1:
-        mfp = dev.get_master_fingerprint_hex()
-        derivation = "m/84h/0h/0h"
-        xpub = dev.get_pubkey_at_path(derivation)["xpub"]
-        print(f"Device fingerprint: {mfp}")
-        print(f"Segwit xpub: {xpub}")
-        print(f"Full key: [{mfp}{derivation[1:]}]{xpub}")
-    else:
-        if "-i" not in sys.argv:
-            cmd = (" ".join(sys.argv[1:]))
-            print("Running command:", cmd)
-            print(dev.query(cmd))
-        else:
-            cmd = ""
-            print("Interactive mode! Enter `quit` to exit.")
-            while inp != "quit":
-                cmd = input("Enter command to run: ")
-                if cmd == "quit":
-                    sys.exit(0)
-                print(dev.query(cmd))
-=======
->>>>>>> specter/specter
