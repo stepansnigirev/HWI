@@ -1,5 +1,6 @@
 # Specter interaction script
 from typing import Dict, Optional, Union
+<<<<<<< HEAD
 from hwilib.serializations import PSBT
 
 from hwilib.hwwclient import HardwareWalletClient
@@ -8,6 +9,16 @@ from hwilib.errors import (ActionCanceledError, BadArgumentError,
                            UnavailableActionError)
 from hwilib.base58 import xpub_main_2_test
 from hwilib import base58
+=======
+from ..serializations import PSBT
+
+from ..hwwclient import HardwareWalletClient
+from ..errors import (ActionCanceledError, BadArgumentError, 
+                           DeviceBusyError, DeviceFailureError, 
+                           UnavailableActionError)
+from ..base58 import xpub_main_2_test
+from .. import base58
+>>>>>>> specter/specter
 
 import serial
 import serial.tools.list_ports
@@ -51,7 +62,7 @@ class SpecterClient(HardwareWalletClient):
         """
         # this should be fast
         xpub = self.query("xpub %s" % bip32_path, timeout=self.TIMEOUT)
-        # Specter returns xpub with a prefix
+        # Specter returns xpub with a prefix 
         # for a network currently selected on the device
         if self.is_testnet:
             return {'xpub': xpub_main_2_test(xpub)}
@@ -64,8 +75,14 @@ class SpecterClient(HardwareWalletClient):
         Return {"psbt": <base64 psbt string>}.
         """
         # this one can hang for quite some time
-        signed_tx = self.query("sign %s" % psbt.serialize())
-        return {'psbt': signed_tx}
+        response = self.query("sign %s" % psbt.serialize())
+        signed_psbt = PSBT()
+        signed_psbt.deserialize(response)
+        # adding partial sigs to initial tx
+        for i in range(len(psbt.inputs)):
+            for k in signed_psbt.inputs[i].partial_sigs:
+                psbt.inputs[i].partial_sigs[k] = signed_psbt.inputs[i].partial_sigs[k]
+        return {'psbt': psbt.serialize()}
 
     def sign_message(self, message: str, bip32_path: str) -> Dict[str, str]:
         """Sign a message (bitcoin message signing).
@@ -107,6 +124,7 @@ class SpecterClient(HardwareWalletClient):
         address = self.query(request)
         return {'address': address}
 
+<<<<<<< HEAD
     def wipe_device(self) -> Dict[str, Union[bool, str, int]]:
         """Wipe the HID device.
 
@@ -202,6 +220,11 @@ class SpecterClient(HardwareWalletClient):
         raise NotImplementedError("The SpecterClient class "
                                   "does not implement this method")
 
+=======
+    def close(self):
+        pass
+
+>>>>>>> specter/specter
     ############ extra functions Specter supports ############
 
     def get_random(self, num_bytes:int=32):
@@ -217,12 +240,20 @@ class SpecterClient(HardwareWalletClient):
 
 def enumerate(password=''):
     """
+<<<<<<< HEAD
     Returns a list of detected Specter devices
+=======
+    Returns a list of detected Specter devices 
+>>>>>>> specter/specter
     with their fingerprints and client's paths
     """
     results = []
     # find ports with micropython's VID
+<<<<<<< HEAD
     ports = [port.device for port
+=======
+    ports = [port.device for port 
+>>>>>>> specter/specter
                          in serial.tools.list_ports.comports()
                          if is_micropython(port)]
     try:
@@ -232,8 +263,13 @@ def enumerate(password=''):
         s.connect(("127.0.0.1", 8789))
         s.close()
         ports.append("127.0.0.1:8789")
+<<<<<<< HEAD
     except:
         pass
+=======
+    except Exception as e:
+        print(e)
+>>>>>>> specter/specter
 
     for port in ports:
         # for every port try to get a fingerprint
@@ -249,8 +285,13 @@ def enumerate(password=''):
             data['fingerprint'] = client.get_master_fingerprint_hex()
             client.close()
             results.append(data)
+<<<<<<< HEAD
         except:
             pass
+=======
+        except Exception as e:
+            print(e)
+>>>>>>> specter/specter
     return results
 
 ############# Helper functions and base classes ##############
@@ -352,6 +393,7 @@ class SpecterSimulator(SpecterBase):
         s.close()
         return res.decode()
 
+<<<<<<< HEAD
 ###### test for communication ######
 
 if __name__ == '__main__':
@@ -391,3 +433,5 @@ if __name__ == '__main__':
                 if cmd == "quit":
                     sys.exit(0)
                 print(dev.query(cmd))
+=======
+>>>>>>> specter/specter
