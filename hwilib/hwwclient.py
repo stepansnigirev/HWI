@@ -6,6 +6,7 @@ from .serializations import PSBT
 
 class HardwareWalletClient(object):
     """Create a client for a HID device that has already been opened.
+
     This abstract class defines the methods
     that hardware wallet subclasses should implement.
     """
