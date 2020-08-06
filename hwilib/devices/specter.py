@@ -19,11 +19,6 @@ from ..serializations import PSBT
 
 
 class SpecterClient(HardwareWalletClient):
-    """Create a client for a HID device that has already been opened.
-
-    This abstract class defines the methods
-    that hardware wallet subclasses should implement.
-    """
 
     # timeout large enough to handle xpub derivations
     TIMEOUT = 3
@@ -49,14 +44,9 @@ class SpecterClient(HardwareWalletClient):
         return res
 
     def get_master_fingerprint_hex(self) -> str:
-        """Return the master public key fingerprint as hex-string."""
         return self.query("fingerprint", timeout=self.TIMEOUT)
 
     def get_pubkey_at_path(self, bip32_path: str) -> Dict[str, str]:
-        """Return the public key at the BIP32 derivation path.
-
-        Return {"xpub": <xpub string>}.
-        """
         # this should be fast
         xpub = self.query("xpub %s" % bip32_path, timeout=self.TIMEOUT)
         # Specter returns xpub with a prefix
@@ -67,10 +57,6 @@ class SpecterClient(HardwareWalletClient):
             return {"xpub": xpub_test_2_main(xpub)}
 
     def sign_tx(self, psbt: PSBT) -> Dict[str, str]:
-        """Sign a partially signed bitcoin transaction (PSBT).
-
-        Return {"psbt": <base64 psbt string>}.
-        """
         # this one can hang for quite some time
         response = self.query("sign %s" % psbt.serialize())
         signed_psbt = PSBT()
@@ -82,14 +68,6 @@ class SpecterClient(HardwareWalletClient):
         return {"psbt": psbt.serialize()}
 
     def sign_message(self, message: str, bip32_path: str) -> Dict[str, str]:
-        """Sign a message (bitcoin message signing).
-
-        Sign the message according to the bitcoin message signing standard.
-
-        Retrieve the signing key at the specified BIP32 derivation path.
-
-        Return {"signature": <base64 signature string>}.
-        """
         sig = self.query("signmessage %s %s" % (bip32_path, message))
         return {"signature": sig}
 
@@ -100,14 +78,6 @@ class SpecterClient(HardwareWalletClient):
         bech32: bool,
         redeem_script: Optional[str] = None,
     ) -> Dict[str, str]:
-        """Display and return the address of specified type.
-
-        redeem_script is a hex-string.
-
-        Retrieve the public key at the specified BIP32 derivation path.
-
-        Return {"address": <base58 or bech32 address string>}.
-        """
         script_type = "pkh" if redeem_script is None else "sh"
         if p2sh_p2wpkh:
             script_type = f"sh-w{script_type}"
@@ -126,14 +96,15 @@ class SpecterClient(HardwareWalletClient):
 
     # extra functions Specter supports ############
 
-    def get_random(self, num_bytes: int = 32):
+    def get_random(self, num_bytes: int = 32) -> bytes:
+        "Return random bytes."
         if num_bytes < 0 or num_bytes > 10000:
             raise BadArgumentError("We can only get up to 10k bytes of random data")
         res = self.query("getrandom %d" % num_bytes)
         return bytes.fromhex(res)
 
     def import_wallet(self, name: str, descriptor: str):
-        # TODO: implement
+        # TODO: implement and document
         pass
 
 
@@ -188,7 +159,7 @@ def xpub_test_2_main(xpub: str) -> str:
     return base58.encode(main_data + checksum)
 
 
-def is_micropython(port):
+def is_micropython(port) -> bool:
     return "VID:PID=F055:" in port.hwid.upper()
 
 
