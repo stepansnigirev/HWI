@@ -1,7 +1,7 @@
 # Specter interaction script
 import socket
 import time
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 import serial
 import serial.tools.list_ports
@@ -31,6 +31,7 @@ class SpecterClient(HardwareWalletClient):
     def __init__(self, path: str, password: str = "", expert: bool = False) -> None:
         super().__init__(path, password, expert)
         self.simulator = ":" in path
+        self.dev: Union[SpecterSimulator, SpecterUSBDevice]
         if self.simulator:
             self.dev = SpecterSimulator(path)
         else:
