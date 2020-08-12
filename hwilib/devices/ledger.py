@@ -1,5 +1,7 @@
 # Ledger interaction script
 
+from typing import Dict, Union
+
 from ..hwwclient import HardwareWalletClient
 from ..errors import (
     ActionCanceledError,
@@ -316,10 +318,8 @@ class LedgerClient(HardwareWalletClient):
         # Send PSBT back
         return {'psbt': tx.serialize()}
 
-    # Must return a base64 encoded string with the signed message
-    # The message can be any string
     @ledger_exception
-    def sign_message(self, message, keypath):
+    def sign_message(self, message: Union[str, bytes], keypath: str) -> Dict[str, str]:
         if not check_keypath(keypath):
             raise BadArgumentError("Invalid keypath")
         if isinstance(message, str):
