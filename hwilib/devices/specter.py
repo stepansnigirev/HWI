@@ -2,6 +2,7 @@
 import socket
 import time
 from typing import Dict, Optional, Union
+from binascii import b2a_base64
 
 import serial
 import serial.tools.list_ports
@@ -67,8 +68,27 @@ class SpecterClient(HardwareWalletClient):
                 psbt.inputs[i].partial_sigs[k] = signed_psbt.inputs[i].partial_sigs[k]
         return {"psbt": psbt.serialize()}
 
-    def sign_message(self, message: str, bip32_path: str) -> Dict[str, str]:
-        sig = self.query("signmessage %s %s" % (bip32_path, message))
+    def sign_message(
+            self, message: Union[str, bytes], bip32_path: str
+        ) -> Dict[str, str]:
+        # convert message to bytes
+        msg = message
+        if not isinstance(message, bytes):
+            msg = message.encode()
+        # check if ascii - we only support ascii characters display
+        try:
+            msg.decode("ascii")
+            fmt = "ascii"
+        except:
+            fmt = "base64"
+        # check if there is \r or \n in the message
+        # in this case we need to encode to base64
+        if b"\r" in msg or b"\n" in msg:
+            fmt = "base64"
+        # convert to base64 if necessary
+        if fmt == "base64":
+            msg = b2a_base64(msg).strip()
+        sig = self.query(f"signmessage {bip32_path} {fmt}:{msg.decode()}")
         return {"signature": sig}
 
     def display_address(
