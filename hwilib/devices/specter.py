@@ -1,21 +1,17 @@
 # Specter interaction script
 import socket
 import time
-from typing import Dict, Optional, Union
-
 from binascii import b2a_base64
+from typing import Dict, Optional, Union
 
 import serial
 import serial.tools.list_ports
 
 from .. import base58
 from ..base58 import xpub_main_2_test
-from ..errors import (
-    ActionCanceledError,
-    BadArgumentError,
-    DeviceBusyError,
-    UnavailableActionError,
-)
+from ..descriptor import Descriptor
+from ..errors import (ActionCanceledError, BadArgumentError, DeviceBusyError,
+                      UnavailableActionError)
 from ..hwwclient import HardwareWalletClient
 from ..serializations import PSBT
 
@@ -29,10 +25,7 @@ class SpecterClient(HardwareWalletClient):
         super().__init__(path, password, expert)
         self.simulator = ":" in path
         self.dev: Union[SpecterSimulator, SpecterUSBDevice]
-        if self.simulator:
-            self.dev = SpecterSimulator(path)
-        else:
-            self.dev = SpecterUSBDevice(path)
+        self.dev = SpecterSimulator(path) if self.simulator else SpecterUSBDevice(path)
 
     def query(self, data: str, timeout: Optional[float] = None) -> str:
         """Send a text-based query to the device and get back the response"""
@@ -71,17 +64,22 @@ class SpecterClient(HardwareWalletClient):
 
     def sign_message(
             self, message: Union[str, bytes], bip32_path: str
-        ) -> Dict[str, str]:
-        # convert message to bytes
-        msg = message
-        if not isinstance(message, bytes):
+    ) -> Dict[str, str]:
+        # convert message string to bytes
+        if isinstance(message, str):
             msg = message.encode()
-        # check if ascii - we only support ascii characters display
-        try:
-            msg.decode("ascii")
-            fmt = "ascii"
-        except:
+            # check if ascii - we only support ascii characters display
+            try:
+                msg.decode("ascii")
+                fmt = "ascii"
+            except UnicodeDecodeError:
+                fmt = "base64"
+            # with python >= 3.7 the above try/except should be:
+            # fmt = "ascii" if msg.isascii() else "base64"
+        else:
+            msg = message
             fmt = "base64"
+
         # check if there is \r or \n in the message
         # in this case we need to encode to base64
         if b"\r" in msg or b"\n" in msg:
@@ -98,6 +96,7 @@ class SpecterClient(HardwareWalletClient):
         p2sh_p2wpkh: bool,
         bech32: bool,
         redeem_script: Optional[str] = None,
+        descriptor: Optional[Descriptor] = None,
     ) -> Dict[str, str]:
         script_type = "pkh" if redeem_script is None else "sh"
         if p2sh_p2wpkh:
@@ -214,7 +213,7 @@ class SpecterUSBDevice(SpecterBase):
     def read_until(self, eol, timeout=None):
         t0 = time.time()
         res = b""
-        while not (eol in res):
+        while eol not in res:
             try:
                 raw = self.ser.read(1)
                 res += raw
@@ -254,7 +253,7 @@ class SpecterSimulator(SpecterBase):
     def read_until(self, s, eol, timeout=None):
         t0 = time.time()
         res = b""
-        while not (eol in res):
+        while eol not in res:
             try:
                 raw = s.recv(1)
                 res += raw

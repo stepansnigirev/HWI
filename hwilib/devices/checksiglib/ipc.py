@@ -1,26 +1,30 @@
 import socket
-import traceback
 from typing import Optional
 
 from .ipc_message import IpcMessage
 
 
+# Connect to the service
 def ipc_connect(port: int) -> Optional[socket.socket]:
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         # we use a very short timeout for connection in this way we are very fast to enumerate (especially on Windows)
         sock.settimeout(0.5)
+
         sock.connect(("127.0.0.1", port))
 
         # If connection succeeded remove the timeout
         sock.settimeout(None)
 
         return sock
-    except:
+    except Exception:
         return None
 
 
+# Read an IPC message from the socket.
+# IPC messages are in TLV format: [type: 4 bytes | payload_size: 8 bytes | payload: payload_size bytes]
+# The payload is always as text
 def ipc_read_message(sock: socket.socket) -> Optional[IpcMessage]:
     try:
         # get the type
@@ -35,15 +39,18 @@ def ipc_read_message(sock: socket.socket) -> Optional[IpcMessage]:
             return None
 
         # read the payload
-        value = sock.recv(int(size))
+        int_size = int(size)
+        value = sock.recv(int_size)
 
         return IpcMessage(cmd, str(value.decode("utf-8")))
 
-    except:
-        print(traceback.format_exc())
+    except Exception:
         return None
 
 
+# Send an IPC message through the socket.
+# IPC messages are in TLV format: [type: 4 bytes | payload_size: 8 bytes | payload: payload_size bytes]
+# The payload is always as text
 def ipc_send_message(sock: socket.socket, msg: IpcMessage) -> bool:
 
     try:
@@ -51,15 +58,14 @@ def ipc_send_message(sock: socket.socket, msg: IpcMessage) -> bool:
         cmd = msg.get_cmd().ljust(IpcMessage.get_cmd_msg_size())
 
         # serialize the size
-        size_int = len(msg.get_raw_value())
-        size = str(size_int).ljust(IpcMessage.get_size_msg_size())
+        size = len(msg.get_raw_value())
+        str_size = str(size).ljust(IpcMessage.get_size_msg_size())
 
         # serialize the payload and send all
-        complete = cmd + size + msg.get_raw_value()
+        complete = cmd + str_size + msg.get_raw_value()
         sock.sendall(str.encode(complete))
         return True
-    except:
-        print(traceback.format_exc())
+    except Exception:
         return False
 
 
