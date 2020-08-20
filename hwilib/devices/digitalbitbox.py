@@ -13,6 +13,7 @@ import logging
 import socket
 import sys
 import time
+from typing import Dict, Union
 
 from ..hwwclient import HardwareWalletClient
 from ..errors import (
@@ -512,14 +513,15 @@ class DigitalbitboxClient(HardwareWalletClient):
 
         return {'psbt': tx.serialize()}
 
-    # Must return a base64 encoded string with the signed message
-    # The message can be any string
     @digitalbitbox_exception
-    def sign_message(self, message, keypath):
+    def sign_message(self, message: Union[str, bytes], keypath: str) -> Dict[str, str]:
         to_hash = b""
         to_hash += self.message_magic
         to_hash += ser_compact_size(len(message))
-        to_hash += message.encode()
+        if isinstance(message, bytes):
+            to_hash += message
+        else:
+            to_hash += message.encode()
 
         hashed_message = hash256(to_hash)
 
@@ -549,7 +551,7 @@ class DigitalbitboxClient(HardwareWalletClient):
         return {"signature": base64.b64encode(compact_sig).decode('utf-8')}
 
     # Display address of specified type on the device.
-    def display_address(self, keypath, p2sh_p2wpkh, bech32, redeem_script=None):
+    def display_address(self, keypath, p2sh_p2wpkh, bech32, redeem_script=None, descriptor=None):
         raise UnavailableActionError('The Digital Bitbox does not have a screen to display addresses on')
 
     # Setup a new device

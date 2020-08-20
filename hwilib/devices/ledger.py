@@ -1,5 +1,7 @@
 # Ledger interaction script
 
+from typing import Dict, Union
+
 from ..hwwclient import HardwareWalletClient
 from ..errors import (
     ActionCanceledError,
@@ -311,13 +313,14 @@ class LedgerClient(HardwareWalletClient):
         # Send PSBT back
         return {'psbt': tx.serialize()}
 
-    # Must return a base64 encoded string with the signed message
-    # The message can be any string
     @ledger_exception
-    def sign_message(self, message, keypath):
+    def sign_message(self, message: Union[str, bytes], keypath: str) -> Dict[str, str]:
         if not check_keypath(keypath):
             raise BadArgumentError("Invalid keypath")
-        message = bytearray(message, 'utf-8')
+        if isinstance(message, str):
+            message = bytearray(message, 'utf-8')
+        else:
+            message = bytearray(message)
         keypath = keypath[2:]
         # First display on screen what address you're signing for
         self.app.getWalletPublicKey(keypath, True)
@@ -340,7 +343,7 @@ class LedgerClient(HardwareWalletClient):
 
     # Display address of specified type on the device. Only supports single-key based addresses.
     @ledger_exception
-    def display_address(self, keypath, p2sh_p2wpkh, bech32, redeem_script=None):
+    def display_address(self, keypath, p2sh_p2wpkh, bech32, redeem_script=None, descriptor=None):
         if not check_keypath(keypath):
             raise BadArgumentError("Invalid keypath")
         if redeem_script is not None:
