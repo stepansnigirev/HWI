@@ -2,6 +2,7 @@
 import socket
 import time
 from typing import Dict, Optional, Union
+
 from binascii import b2a_base64
 
 import serial
@@ -135,6 +136,7 @@ def enumerate(password=""):
     """
     results = []
     # find ports with micropython's VID
+
     ports = [
         port.device
         for port in serial.tools.list_ports.comports()

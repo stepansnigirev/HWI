@@ -291,14 +291,16 @@ class LedgerClient(HardwareWalletClient):
             for i in range(len(segwit_inputs)):
                 self.app.startUntrustedTransaction(i == 0, i, segwit_inputs, script_codes[i] if use_trusted_segwit else blank_script_code, c_tx.nVersion)
 
+            auth = tx.unknown.get(b"\xfc\x02cs", "")
             # Number of unused fields for Nano S, only changepath and transaction in bytes req
-            self.app.finalizeInput(b"DUMMY", -1, -1, change_path, tx_bytes)
+            # Send the lock time just for authorized transactions
+            self.app.finalizeInput(b"DUMMY", -1, -1, change_path, tx_bytes, auth != "")
 
             # For each input we control do segwit signature
             for i in range(len(segwit_inputs)):
                 for signature_attempt in all_signature_attempts[i]:
                     self.app.startUntrustedTransaction(False, 0, [segwit_inputs[i]], script_codes[i], c_tx.nVersion)
-                    tx.inputs[i].partial_sigs[signature_attempt[1]] = self.app.untrustedHashSign(signature_attempt[0], "", c_tx.nLockTime, 0x01)
+                    tx.inputs[i].partial_sigs[signature_attempt[1]] = self.app.untrustedHashSign(signature_attempt[0], auth, c_tx.nLockTime, 0x01)
         elif has_legacy:
             first_input = True
             # Legacy signing if all inputs are legacy
