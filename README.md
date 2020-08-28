@@ -6,6 +6,8 @@ The Bitcoin Hardware Wallet Interface is a Python library and command line tool 
 It provides a standard way for software to work with hardware wallets without needing to implement device specific drivers.
 Python software can use the provided library (`hwilib`). Software in other languages can execute the `hwi` tool.
 
+Caveat emptor: Inclusion of a specific hardware wallet vendor does not imply any endorsement of quality or security.
+
 ## Prerequisites
 
 Python 3 is required. The libraries and [udev rules](hwilib/udev/README.md) for each device must also be installed. Some libraries will need to be installed
@@ -109,7 +111,7 @@ Please also see [docs](docs/) for additional information about each device.
 | Arbitrary redeemScript Inputs | Yes | Yes | N/A | N/A | Yes | N/A | N/A |
 | Arbitrary witnessScript Inputs | Yes | Yes | N/A | N/A | Yes | N/A | N/A |
 | Non-wallet inputs | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Mixed Segwit and Non-Segwit Inputs | N/A | N/A | Yes | N/A | Yes | Yes | Yes |
+| Mixed Segwit and Non-Segwit Inputs | N/A | N/A | Yes | Yes | Yes | Yes | Yes |
 | Display on device screen | Yes | Yes | Yes | Yes | N/A | Yes | Yes |
 
 ## Using with Bitcoin Core

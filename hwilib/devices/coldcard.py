@@ -1,5 +1,7 @@
 # Coldcard interaction script
 
+from typing import Dict, Union
+
 from ..hwwclient import HardwareWalletClient
 from ..errors import (
     ActionCanceledError,
@@ -122,7 +124,7 @@ class ColdcardClient(HardwareWalletClient):
             if our_keys > passes:
                 passes = our_keys
 
-        for i in range(0, passes):
+        for _ in range(passes):
             # Get psbt in hex and then make binary
             fd = io.BytesIO(base64.b64decode(tx.serialize()))
 
@@ -174,15 +176,18 @@ class ColdcardClient(HardwareWalletClient):
             tx.deserialize(base64.b64encode(result).decode())
         return {'psbt': tx.serialize()}
 
-    # Must return a base64 encoded string with the signed message
-    # The message can be any string. keypath is the bip 32 derivation path for the key to sign with
     @coldcard_exception
-    def sign_message(self, message, keypath):
+    def sign_message(self, message: Union[str, bytes], keypath: str) -> Dict[str, str]:
         self.device.check_mitm()
         keypath = keypath.replace('h', '\'')
         keypath = keypath.replace('H', '\'')
 
-        ok = self.device.send_recv(CCProtocolPacker.sign_message(message.encode(), keypath, AF_CLASSIC), timeout=None)
+        msg = message
+        if not isinstance(message, bytes):
+            msg = message.encode()
+        ok = self.device.send_recv(
+            CCProtocolPacker.sign_message(msg, keypath, AF_CLASSIC), timeout=None
+        )
         assert ok is None
         if self.device.is_simulator:
             self.device.send_recv(CCProtocolPacker.sim_keypress(b'y'))
@@ -198,14 +203,14 @@ class ColdcardClient(HardwareWalletClient):
         if len(done) != 2:
             raise DeviceFailureError('Failed: %r' % done)
 
-        addr, raw = done
+        _, raw = done
 
         sig = str(base64.b64encode(raw), 'ascii').replace('\n', '')
         return {"signature": sig}
 
     # Display address of specified type on the device.
     @coldcard_exception
-    def display_address(self, keypath, p2sh_p2wpkh, bech32, redeem_script=None):
+    def display_address(self, keypath, p2sh_p2wpkh, bech32, redeem_script=None, descriptor=None):
         self.device.check_mitm()
         keypath = keypath.replace('h', '\'')
         keypath = keypath.replace('H', '\'')

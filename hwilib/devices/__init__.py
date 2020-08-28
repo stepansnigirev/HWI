@@ -4,5 +4,6 @@ __all__ = [
     'keepkey',
     'digitalbitbox',
     'coldcard',
-    'specter'
+    'specter',
+    'checksig'
 ]
